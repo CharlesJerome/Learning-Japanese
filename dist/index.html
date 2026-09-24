@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nihongo Studio — Listen & Speak</title>
+<meta name="description" content="Your Japanese practice room. Listen, speak and learn kana with English and Burmese guidance.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='13' fill='%232c4df3'/%3E%3Ctext x='24' y='34' font-size='32' text-anchor='middle' fill='white'%3Eあ%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css"><script src="lessons.js" defer></script><script src="app.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to practice</a>
+<aside class="rail">
+<a class="brand" href="#"><span class="brand-icon" lang="ja">あ</span><span>Nihongo<span class="brand-sub">STUDIO</span></span></a>
+<div class="rail-label">YOUR PRACTICE ROOM</div>
+<nav aria-label="Main navigation">
+<button class="nav-item active" data-view="practice"><span aria-hidden="true">◉</span> Listen & speak<small lang="my">နားထောင်၊ ပြောဆို</small></button>
+<button class="nav-item" data-view="kana"><span aria-hidden="true">あ</span> Kana library<small lang="my">အက္ခရာများ</small></button>
+<button class="nav-item" data-view="plan"><span aria-hidden="true">▦</span> My study plan<small lang="my">လေ့လာမှု အစီအစဉ်</small></button>
+<button class="nav-item" data-view="resources"><span aria-hidden="true">↗</span> Learning resources<small lang="my">လေ့လာရန် အရင်းအမြစ်များ</small></button>
+</nav>
+<div class="rail-bottom"><div class="goal-tag">YOUR 6-MONTH GOAL</div><div class="goal-levels">N5 <span>→</span> N4 <span>→</span> <strong>N3</strong></div><p>A little practice, every day.<br><span lang="my">နေ့တိုင်း နည်းနည်းစီ လေ့ကျင့်ပါ။</span></p></div>
+</aside>
+<main id="main">
+<header><div><div class="eyebrow">ENGLISH + မြန်မာ</div><h1 id="page-title">Listen & speak</h1><p class="subtitle" id="page-subtitle">Your voice. Your pace. One lesson at a time.</p></div><div class="top-badge">日本語 <span>Practice studio</span></div></header>
+<section id="practice-view" class="view">
+<div class="lesson-bar"><div><label for="lesson-select">Choose a lesson <span lang="my">သင်ခန်းစာ ရွေးပါ</span></label><select id="lesson-select"><option value="hira-t">Hiragana · T row — た ち つ て と</option></select></div><div class="lesson-count" id="lesson-count">5 practice cards</div></div>
+<div class="practice-layout"><div>
+<div class="mode-tabs" role="tablist" aria-label="Practice mode"><button id="listen-tab" role="tab" aria-selected="true" aria-controls="exercise" class="selected" data-mode="listen">01 <span>Listen / နားထောင်</span></button><button id="speak-tab" role="tab" aria-selected="false" tabindex="-1" aria-controls="exercise" data-mode="speak">02 <span>Speak / ပြောဆို</span></button></div>
+<article class="exercise" id="exercise" role="tabpanel" aria-labelledby="listen-tab">
+<div class="card-top"><span class="pill" id="lesson-stage">FOUNDATION</span><span id="card-position">CARD 01 / 05</span></div>
+<div class="sound-visual" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+<div class="word-area"><p class="card-prompt" id="card-prompt">Listen first. What do you hear?</p><div class="japanese" id="japanese" lang="ja">•••</div><p class="reading" id="reading">Listen, then choose below.</p><p class="meaning" id="meaning"></p><p class="burmese" id="burmese" lang="my">အရင်နားထောင်ပြီး အဖြေရွေးပါ။</p></div>
+<div class="audio-actions"><button class="primary" id="play-button"><span aria-hidden="true">▶</span> Listen / နားထောင်</button><label class="speed-label" for="speed">Speed<select id="speed"><option value="0.75">0.75× Slow</option><option value="1" selected>1× Normal</option></select></label></div>
+<p class="status" id="audio-status" role="status"></p>
+<div id="listen-panel"><div class="answer-heading">Which one did you hear? <span lang="my">ဘာကြားလိုက်လဲ။</span></div><div class="answers" id="answers"></div><button class="text-button" id="reveal-button">Show answer / အဖြေကြည့်မယ်</button><p class="feedback" id="quiz-feedback" role="status"></p></div>
+<div id="speak-panel" hidden><div class="record-box"><div><strong>Now, say it aloud.</strong><p lang="my">အသံထွက်ပြောပြီး အသံသွင်းပါ။</p></div><button id="record-button" class="record-button">● Record my voice</button></div><p class="status" id="record-status" role="status">Your recording stays in this tab. It is not uploaded.</p><audio id="recording" controls hidden aria-label="Listen to your recording"></audio><div class="speaking-tip">Listen back: are every vowel and the rhythm clear?<br><span lang="my">ပြန်နားထောင်ပါ။ သရသံနဲ့ အသံစည်းချက် ရှင်းလား။</span></div><button id="complete-button" class="secondary">I practised this / လေ့ကျင့်ပြီးပြီ</button></div>
+<div class="card-bottom"><button id="previous-button" class="text-button">← Previous</button><span id="session-progress">0 practised this session</span><button id="next-button" class="next-button">Next card →</button></div>
+</article></div>
+<aside class="practice-notes"><section class="coach-note"><div class="eyebrow">YOUR TEACHER’S NOTE</div><h2 id="note-title">Small sounds, big progress.</h2><p id="note-en">ち is chi. つ is tsu. Keep each sound short and clear.</p><p id="note-my" lang="my">ち ကို chi၊ つ ကို tsu လို့ ဖတ်ပါ။ အသံတိုတိုနဲ့ ရှင်းရှင်းထွက်ပါ။</p><div class="note-rule"></div><div class="tiny-label">TODAY’S FLOW</div><ol class="flow"><li><span>1</span><div>Listen carefully<small lang="my">သေချာ နားထောင်ပါ</small></div></li><li><span>2</span><div>Repeat out loud<small lang="my">အသံထွက် လိုက်ပြောပါ</small></div></li><li><span>3</span><div>Record & compare<small lang="my">အသံသွင်းပြီး နှိုင်းယှဉ်ပါ</small></div></li></ol></section><section class="session-note"><span class="mini-icon" aria-hidden="true">↺</span><div><strong>10 minutes is a good start.</strong><p>Repeat a few cards until they feel familiar.</p><p lang="my">ရင်းနှီးလာတဲ့အထိ ထပ်လေ့ကျင့်ပါ။</p></div></section></aside>
+</div>
+</section>
+<section id="kana-view" class="view" hidden></section><section id="plan-view" class="view" hidden></section><section id="resources-view" class="view" hidden></section>
+<footer>Made for your Japanese journey <span>日本語を、少しずつ。</span></footer>
+</main></body></html>
