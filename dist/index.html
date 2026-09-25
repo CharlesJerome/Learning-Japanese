@@ -5,7 +5,7 @@
 <title>Nihongo Studio — Listen & Speak</title>
 <meta name="description" content="Your Japanese practice room. Listen, speak and learn kana with English and Burmese guidance.">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='13' fill='%232c4df3'/%3E%3Ctext x='24' y='34' font-size='32' text-anchor='middle' fill='white'%3Eあ%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css"><script src="lessons.js" defer></script><script src="app.js" defer></script>
+<meta name="theme-color" content="#142238"><script src="theme.js"></script><link rel="stylesheet" href="style.css"><script src="lessons.js" defer></script><script src="extra-lessons.js" defer></script><script src="app.js" defer></script><script src="vendor/supabase.js" defer></script><script src="config.js" defer></script><script src="account.js" defer></script><script src="offline.js" defer></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to practice</a>
@@ -18,10 +18,10 @@
 <button class="nav-item" data-view="plan"><span aria-hidden="true">▦</span> My study plan<small lang="my">လေ့လာမှု အစီအစဉ်</small></button>
 <button class="nav-item" data-view="resources"><span aria-hidden="true">↗</span> Learning resources<small lang="my">လေ့လာရန် အရင်းအမြစ်များ</small></button>
 </nav>
-<div class="rail-bottom"><div class="goal-tag">YOUR 6-MONTH GOAL</div><div class="goal-levels">N5 <span>→</span> N4 <span>→</span> <strong>N3</strong></div><p>A little practice, every day.<br><span lang="my">နေ့တိုင်း နည်းနည်းစီ လေ့ကျင့်ပါ။</span></p></div>
+<div class="rail-bottom"><div class="goal-tag">YOUR 6-MONTH GOAL</div><div class="goal-levels">N5 <span>→</span> N4 <span>→</span> <strong>N3</strong></div><p>A little practice, every day.<br><span lang="my">နေ့တိုင်း နည်းနည်းစီ လေ့ကျင့်ပါ။</span></p><p class="byline">Made by Charles</p></div>
 </aside>
 <main id="main">
-<header><div><div class="eyebrow">ENGLISH + မြန်မာ</div><h1 id="page-title">Listen & speak</h1><p class="subtitle" id="page-subtitle">Your voice. Your pace. One lesson at a time.</p></div><div class="top-badge">日本語 <span>Practice studio</span></div></header>
+<header><div><div class="eyebrow">ENGLISH + မြန်မာ</div><h1 id="page-title">Listen & speak</h1><p class="subtitle" id="page-subtitle">Your voice. Your pace. One lesson at a time.</p></div><div class="header-tools"><label class="theme-label" for="theme-select">Theme / အရောင်<select id="theme-select"><option value="system">Device setting</option><option value="light">Light / အလင်း</option><option value="dark">Dark / အမှောင်</option></select></label><button class="secondary" id="account-button">Sign in / ဝင်မယ်</button></div></header><div class="sync-bar"><p id="sync-status" role="status">Guest practice • saved on this device only</p><button class="text-button" id="retry-sync">Retry sync</button></div>
 <section id="practice-view" class="view">
 <div class="lesson-bar"><div><label for="lesson-select">Choose a lesson <span lang="my">သင်ခန်းစာ ရွေးပါ</span></label><select id="lesson-select"><option value="hira-t">Hiragana · T row — た ち つ て と</option></select></div><div class="lesson-count" id="lesson-count">5 practice cards</div></div>
 <div class="practice-layout"><div>
@@ -31,7 +31,7 @@
 <div class="sound-visual" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
 <div class="word-area"><p class="card-prompt" id="card-prompt">Listen first. What do you hear?</p><div class="japanese" id="japanese" lang="ja">•••</div><p class="reading" id="reading">Listen, then choose below.</p><p class="meaning" id="meaning"></p><p class="burmese" id="burmese" lang="my">အရင်နားထောင်ပြီး အဖြေရွေးပါ။</p></div>
 <div class="audio-actions"><button class="primary" id="play-button"><span aria-hidden="true">▶</span> Listen / နားထောင်</button><label class="speed-label" for="speed">Speed<select id="speed"><option value="0.75">0.75× Slow</option><option value="1" selected>1× Normal</option></select></label></div>
-<p class="status" id="audio-status" role="status"></p>
+<p class="status" id="audio-status" role="status"></p><details class="voice-settings"><summary>Voice settings / အသံ ရွေးမယ်</summary><label for="voice-select">Japanese voice<select id="voice-select"><option value="">Automatic · best available</option></select></label><p>Natural and enhanced voices are preferred when your device provides them. Voices are synthetic; quality and availability depend on your browser. Online voices need a connection.</p><p lang="my">စက်မှာ ရနိုင်တဲ့ သဘာဝကျသော အသံကို ရွေးပါ။ Browser နဲ့ စက်ပေါ်မူတည်ပြီး အသံကွာနိုင်ပါတယ်။</p></details>
 <div id="listen-panel"><div class="answer-heading">Which one did you hear? <span lang="my">ဘာကြားလိုက်လဲ။</span></div><div class="answers" id="answers"></div><button class="text-button" id="reveal-button">Show answer / အဖြေကြည့်မယ်</button><p class="feedback" id="quiz-feedback" role="status"></p></div>
 <div id="speak-panel" hidden><div class="record-box"><div><strong>Now, say it aloud.</strong><p lang="my">အသံထွက်ပြောပြီး အသံသွင်းပါ။</p></div><button id="record-button" class="record-button">● Record my voice</button></div><p class="status" id="record-status" role="status">Your recording stays in this tab. It is not uploaded.</p><audio id="recording" controls hidden aria-label="Listen to your recording"></audio><div class="speaking-tip">Listen back: are every vowel and the rhythm clear?<br><span lang="my">ပြန်နားထောင်ပါ။ သရသံနဲ့ အသံစည်းချက် ရှင်းလား။</span></div><button id="complete-button" class="secondary">I practised this / လေ့ကျင့်ပြီးပြီ</button></div>
 <div class="card-bottom"><button id="previous-button" class="text-button">← Previous</button><span id="session-progress">0 practised this session</span><button id="next-button" class="next-button">Next card →</button></div>
@@ -41,4 +41,10 @@
 </section>
 <section id="kana-view" class="view" hidden></section><section id="plan-view" class="view" hidden></section><section id="resources-view" class="view" hidden></section>
 <footer>Made for your Japanese journey <span>日本語を、少しずつ。</span></footer>
-</main></body></html>
+</main>
+<dialog id="account-dialog" aria-labelledby="account-title"><div class="dialog-head"><h2 id="account-title">Save your progress</h2><button class="secondary" id="account-close" aria-label="Close account dialog">✕</button></div>
+<p class="account-intro">Sign in to keep your practice private and continue on another device.<br><span lang="my">အကောင့်ဝင်ပြီး တိုးတက်မှုကို သိမ်းပါ။ အခြားစက်မှာလည်း ဆက်လေ့ကျင့်နိုင်ပါတယ်။</span></p>
+<div id="auth-tabs" class="auth-tabs"><button class="secondary" data-auth-mode="login" aria-pressed="true">Sign in</button><button class="secondary" data-auth-mode="signup" aria-pressed="false">Create account</button><button class="text-button" data-auth-mode="reset" aria-pressed="false">Forgot password?</button></div>
+<form id="auth-form"><label id="email-field">Email / အီးမေးလ်<input id="auth-email" type="email" autocomplete="email" required maxlength="254"></label><label id="password-field">Password / စကားဝှက်<input id="auth-password" type="password" autocomplete="current-password" required maxlength="128"></label><p id="email-setup-note" class="setup-note" hidden>New accounts are waiting for email setup. Password reset currently works only for email addresses authorized by the site owner’s email service.<br><span lang="my">အကောင့်အသစ်ဖွင့်ဖို့ အီးမေးလ်စနစ် ပြင်ဆင်ရန် လိုပါသေးတယ်။</span></p><button id="auth-submit" class="primary" type="submit">Sign in / ဝင်မယ်</button></form>
+<div id="signed-in-panel" hidden><p>Signed in as <strong id="account-email"></strong></p><p>Your practice is visible only to your account. Recordings stay in this tab.</p><button class="secondary" id="signout-button">Sign out / ထွက်မယ်</button></div><p id="account-status" role="status" class="status"></p></dialog>
+</body></html>
