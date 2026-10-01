@@ -15,18 +15,15 @@ Japanese listening and speaking practice with English and Burmese guidance. Made
 
 These exercises supplement a course; they do not cover the complete JLPT N3 syllabus or guarantee exam readiness. See [lesson sources](LESSON_SOURCES.md). Original textbooks, source PDFs, recordings and videos are not included.
 
-## Accounts and remaining email setup
+## Accounts and email delivery
 
 Supabase Auth provides email/password login. Supabase row-level security limits saved completions and preferences to their owner. The publishable key in `dist/config.js` is intentionally public; never replace it with a secret or service-role key.
 
-**Public signup is disabled in the website until email delivery is configured.** Existing confirmed accounts can sign in. Supabase's default email service only sends confirmation/reset messages to project-team addresses. Custom SMTP and a verified sender/domain are still needed for general signups. No email-service account has been created.
+Public signup is enabled in the website. Resend has verified `auth.learningwithcharles.com`, and custom SMTP is saved in Supabase with `no-reply@auth.learningwithcharles.com` as the sender. The secret remains in Supabase, never in this repository. Email confirmation remains required.
 
-To finish:
+The application continues to run at the published `chatgpt.site` URL. Purchasing the email domain does not move the website. Supabase's Site URL and redirect allowlist use that production URL.
 
-1. Configure custom SMTP in Supabase Authentication using a service you own.
-2. Set Authentication's Site URL to the published URL and allow the exact production/test redirect URLs you intend to use.
-3. Keep email confirmation enabled. Test confirmation, login and password recovery with an address outside the project team.
-4. Set `publicSignupReady` to `true` in `dist/config.js`, then republish.
+Before considering the account launch fully verified, complete a real signup and confirmation, sign in, request a password reset and confirm that the new password works. These inbox and password steps must be completed by the account owner. If email delivery fails, set `publicSignupReady` to `false` in `dist/config.js` and republish while investigating.
 
 `supabase/schema.sql` was already applied to the configured project; do not re-run it there. For a new project, apply it once and update the public URL/key. `supabase/validate-rls.sql` performs rollback-only isolation checks with temporary fixtures, without sending emails.
 
@@ -39,7 +36,7 @@ To finish:
 - The HTTPS site caches an explicit list of lesson/app files only, including their fixed asset versions. Authentication requests, progress data, arbitrary query-bearing URLs, lesson audio and recordings are not stored in the service-worker cache. First visits, natural voice clips, online device voices and cloud sync need internet. Select a locally installed Japanese voice for offline speech.
 - There is no automatic pronunciation grading; listen and compare your recording.
 
-Site access permissions are separate from Supabase accounts. Owner-only hosting must be changed or an invitation granted before another person can open the site.
+Site access is public: anyone with the website link can practise. Supabase accounts keep each person’s saved progress separate.
 
 ## Run locally
 
@@ -78,4 +75,4 @@ A GitHub push stores source; it does not publish Sites. Deploy the tested source
 
 ## Verification
 
-JavaScript syntax, lesson schema/IDs, simulated account-state behavior and live SQL isolation were checked. Live SQL tests rolled back all fixtures. Browser checks cover phone/desktop themes, lesson navigation, signup setup messaging and Japanese playback. Real signup, email delivery, recovery emails and cross-device login still need verification after SMTP setup. No personal passwords or microphone recordings were used in these tests.
+JavaScript syntax, lesson schema/IDs, simulated account-state behavior and live SQL isolation were checked. Live SQL tests rolled back all fixtures. Browser checks cover phone/desktop themes, lesson navigation, signup setup messaging and Japanese playback. SMTP settings and the sending domain are configured. Real inbox delivery, confirmation, password recovery and cross-device login still require account-owner verification. No personal passwords or microphone recordings were used in these tests.

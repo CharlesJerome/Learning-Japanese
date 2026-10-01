@@ -19,17 +19,19 @@
   el('account-title').textContent=recovery?'Choose a new password':user?'Your account / သင့်အကောင့်':'Save your progress / တိုးတက်မှု သိမ်းမယ်';
   el('password-field').hidden=mode==='reset';el('email-field').hidden=recovery;
   el('auth-password').required=mode!=='reset';el('auth-email').required=!recovery;
+  el('auth-password').disabled=mode==='reset';el('auth-email').disabled=recovery;
   el('auth-password').minLength=mode==='login'?1:10;el('auth-password').autocomplete=mode==='login'?'current-password':'new-password';
+  el('password-hint').hidden=mode==='login'||mode==='reset';
   el('auth-submit').textContent=recovery?'Save new password':mode==='signup'?'Create account':mode==='reset'?'Send reset link':'Sign in / ဝင်မယ်';
   el('auth-submit').disabled=busy||(mode==='signup'&&!config.publicSignupReady);
-  el('email-setup-note').hidden=mode==='login'||recovery;
+  el('email-setup-note').hidden=config.publicSignupReady||mode==='login'||recovery;
   document.querySelectorAll('[data-auth-mode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.authMode===mode));
  }
  function errorText(error){
   const code=error?.code||'',msg=error?.message||'';
   if(code==='email_not_confirmed')return 'Confirm your email before signing in. / အီးမေးလ်ကို အရင်အတည်ပြုပါ။';
-  if(code==='over_email_send_rate_limit'||code==='over_request_rate_limit')return 'Too many attempts. Please wait before trying again.';
-  if(/email address not authorized|email rate|email.*sending|smtp/i.test(msg))return 'Email delivery is not ready for this address. The site owner needs to finish email setup.';
+  if(error?.status===429||code==='over_email_send_rate_limit'||code==='over_request_rate_limit')return 'Too many attempts. Please wait before trying again.';
+  if(/email address not authorized|email rate|email.*sending|smtp/i.test(msg))return 'Email could not be sent. Please try again later. / အီးမေးလ်ပို့မရပါ။ နောက်မှ ပြန်စမ်းပါ။';
   if(code==='invalid_credentials')return 'Email or password is incorrect. / အီးမေးလ် သို့မဟုတ် စကားဝှက် မမှန်ပါ။';
   if(!navigator.onLine||/fetch|network/i.test(msg))return 'You are offline or the connection failed. Please try again when connected.';
   return msg||'Could not complete this request. Please try again.';

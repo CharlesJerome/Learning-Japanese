@@ -6,9 +6,9 @@ const source = fs.readFileSync(path.join(__dirname, '../dist/account.js'), 'utf8
 const tick = () => new Promise(resolve => setTimeout(resolve, 3));
 const deferred = () => { let resolve; const promise = new Promise(r => resolve = r); return {promise,resolve}; };
 
-function setup({storageFails=false,initialUser='alice',guestKeys=[],holdInitialReads=true}={}) {
+function setup({storageFails=false,initialUser='alice',guestKeys=[],holdInitialReads=true,signupReady=false,authError=null}={}) {
   const listeners=new Map(),nodes=new Map(),saved=new Map();
-  const reads=[],writes=[],passwordUpdates=[];
+  const reads=[],writes=[],passwordUpdates=[],authRequests=[];
   const serverProgress=new Map([['alice',[]],['bob',['lesson:1']]]);
   const serverThemes=new Map([['alice','dark'],['bob','system']]);
   let theme='system',holdWrites=false,authHandler=null,sessionUser=initialUser;
@@ -44,16 +44,19 @@ function setup({storageFails=false,initialUser='alice',guestKeys=[],holdInitialR
       onAuthStateChange(handler){authHandler=handler;},
       getSession(){return Promise.resolve({data:{session:sessionUser?{user:user(sessionUser)}:null},error:null});},
       updateUser(payload){passwordUpdates.push({user:sessionUser,...payload});return Promise.resolve({data:{user:user(sessionUser)},error:null});},
+      signUp(payload){authRequests.push({method:'signup',payload});return Promise.resolve({data:{session:null},error:authError});},
+      resetPasswordForEmail(email,options){authRequests.push({method:'reset',email,options});return Promise.resolve({data:{},error:authError});},
       signOut(){sessionUser=null;return Promise.resolve({error:null});}
     }
   };
   const window={
-    NIHONGO_CONFIG:{url:'https://example.invalid',publishableKey:'test',publicSignupReady:false},
+    NIHONGO_CONFIG:{url:'https://example.invalid',publishableKey:'test',publicSignupReady:signupReady},
     supabase:{createClient:()=>client},
     addEventListener(name,handler){listeners.set(name,handler);},
     dispatchEvent(event){listeners.get(event.type)?.(event);}
   };
-  const context={window,document:{getElementById:node,querySelectorAll:()=>[]},
+  const modes=['login','signup','reset'].map(mode=>{const button=node('mode-'+mode);button.dataset.authMode=mode;return button;});
+  const context={window,document:{getElementById:node,querySelectorAll:()=>modes},
     localStorage:{getItem:k=>saved.get(k)??null,setItem(k,v){if(storageFails)throw new Error('Storage unavailable');saved.set(k,v);},removeItem:k=>saved.delete(k)},
     navigator:{onLine:true},LESSONS:[{id:'lesson',cards:[{},{},{}]}],
     NihongoTheme:{apply:value=>{theme=value;}},
@@ -62,7 +65,8 @@ function setup({storageFails=false,initialUser='alice',guestKeys=[],holdInitialR
     location:{origin:'https://example.invalid',pathname:'/'},console};
   vm.runInNewContext(source,context);
   return{
-    window,context,node,reads,writes,saved,passwordUpdates,
+    window,context,node,reads,writes,saved,passwordUpdates,authRequests,
+    mode(value){node('mode-'+value).onclick();},
     getTheme:()=>theme,
     setTheme(value){theme=value;window.dispatchEvent({type:'themechange',detail:value});},
     holdWrites(value){holdWrites=value;},
@@ -121,6 +125,27 @@ function setup({storageFails=false,initialUser='alice',guestKeys=[],holdInitialR
 
   const recoverySwitch=setup({holdInitialReads:false});await tick();recoverySwitch.auth('PASSWORD_RECOVERY','alice');await tick();recoverySwitch.auth('SIGNED_IN','bob');await tick();
   check('switching identity cancels another account recovery state',recoverySwitch.node('auth-form').hidden,recoverySwitch.node('account-title').textContent);
+
+  const signup=setup({initialUser:null,signupReady:true});await tick();signup.mode('signup');
+  signup.node('auth-email').value=' learner@example.invalid ';signup.node('auth-password').value='test-password-only';
+  check('ready signup enables submission and shows the password requirement without a setup warning',!signup.node('auth-submit').disabled&&signup.node('email-setup-note').hidden&&!signup.node('password-hint').hidden);
+  await signup.node('auth-form').onsubmit({preventDefault(){}});
+  const signupCall=signup.authRequests[0];
+  check('signup uses the entered address and returns to this site after confirmation',signupCall?.method==='signup'&&signupCall.payload.email==='learner@example.invalid'&&signupCall.payload.options.emailRedirectTo==='https://example.invalid/');
+  check('unconfirmed signup asks for email confirmation without granting a local signed-in session',signup.node('account-status').textContent.includes('confirm your account')&&!signup.window.NihongoAccount.isSignedIn()&&signup.node('auth-password').value==='');
+
+  const reset=setup({initialUser:null,signupReady:true});await tick();
+  reset.node('auth-password').value='short';reset.mode('reset');reset.node('auth-email').value='learner@example.invalid';
+  check('reset excludes a previously entered short password from native form validation',reset.node('auth-password').disabled&&!reset.node('auth-email').disabled&&reset.node('password-hint').hidden);
+  await reset.node('auth-form').onsubmit({preventDefault(){}});
+  check('reset sends only the email and correct redirect',reset.authRequests[0]?.method==='reset'&&reset.authRequests[0].email==='learner@example.invalid'&&reset.authRequests[0].options.redirectTo==='https://example.invalid/');
+
+  const limited=setup({initialUser:null,signupReady:true,authError:{status:429,message:'Request rejected'}});await tick();limited.mode('signup');
+  await limited.node('auth-form').onsubmit({preventDefault(){}});
+  check('rate-limited signup gives a wait message and allows a later retry',limited.node('account-status').textContent.includes('Please wait')&&!limited.node('auth-submit').disabled);
+
+  const paused=setup({initialUser:null});await tick();paused.mode('signup');await paused.node('auth-form').onsubmit({preventDefault(){}});
+  check('signup readiness switch still prevents requests when email delivery is paused',paused.node('auth-submit').disabled&&!paused.node('email-setup-note').hidden&&paused.authRequests.length===0);
 
   console.log(JSON.stringify(results,null,2));
   process.exitCode=results.every(r=>r.passed)?0:1;
