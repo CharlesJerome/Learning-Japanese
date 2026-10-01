@@ -8,7 +8,7 @@ Japanese listening and speaking practice with English and Burmese guidance. Made
 
 - 48 practice sets with 241 cards: basic hiragana/katakana, 18 new N5/N4 sets and selected N3 phrases.
 - Listening quizzes, slower playback, Japanese voice selection, recording and self-comparison.
-- Natural/enhanced browser voices are preferred when available. Voices are synthetic and depend on the visitor's device; no paid voice service is configured.
+- Free Kokoro Japanese AI clips are the default, with selectable Japanese device voices and automatic fallback if a clip cannot load. See [audio sources and generation](AUDIO_SOURCES.md).
 - English/Burmese meanings and notes, a weekly timetable and a six-month roadmap.
 - Burmese Minna no Nihongo playlist, NihonGoal, Japanese Ammo with Misa and official JLPT resources.
 - Light, dark and device themes; responsive phone, tablet and desktop layouts.
@@ -36,7 +36,7 @@ To finish:
 - Guest progress is device-only, separate from account progress, and is not automatically imported.
 - Signed-in theme choices sync; guest themes and voice selections stay on the device.
 - Recordings stay in the current tab and are never uploaded. Card/view changes, sign-out, account switching and closing the tab clear them.
-- The HTTPS site caches static lesson/app files only. Authentication requests, progress data, query-bearing URLs and recordings are not stored in the service-worker cache. First visits, online voices and cloud sync need internet.
+- The HTTPS site caches an explicit list of lesson/app files only, including their fixed asset versions. Authentication requests, progress data, arbitrary query-bearing URLs, lesson audio and recordings are not stored in the service-worker cache. First visits, natural voice clips, online device voices and cloud sync need internet. Select a locally installed Japanese voice for offline speech.
 - There is no automatic pronunciation grading; listen and compare your recording.
 
 Site access permissions are separate from Supabase accounts. Owner-only hosting must be changed or an invitation granted before another person can open the site.
