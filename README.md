@@ -11,7 +11,7 @@ Japanese listening and speaking practice with English and Burmese guidance. Made
 - Free Kokoro Japanese AI clips are the default, with selectable Japanese device voices and automatic fallback if a clip cannot load. See [audio sources and generation](AUDIO_SOURCES.md).
 - English/Burmese meanings and notes, a weekly timetable and a six-month roadmap.
 - Burmese Minna no Nihongo playlist, NihonGoal, Japanese Ammo with Misa and official JLPT resources.
-- Light, dark and device themes; responsive phone, tablet and desktop layouts.
+- One-click light/dark theme buttons in the header and profile settings; responsive phone, tablet and desktop layouts. Existing device-based preferences remain supported until a mode is chosen.
 - A private profile page shows per-lesson progress, first-saved card history, display-name settings, theme settings, password-reset access and an explicit option to import earlier guest practice.
 
 These exercises supplement a course; they do not cover the complete JLPT N3 syllabus or guarantee exam readiness. See [lesson sources](LESSON_SOURCES.md). Original textbooks, source PDFs, recordings and videos are not included.

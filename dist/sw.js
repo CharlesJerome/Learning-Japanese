@@ -1,7 +1,7 @@
 'use strict';
-const CACHE='nihongo-static-v5';
+const CACHE='nihongo-static-v6';
 const BASE=new URL('./',self.location.href);
-const FILES=['index.html','style.css?v=profile1','theme.js','lessons.js','extra-lessons.js','lesson-expansion.js?v=lessons1','practice-session.js?v=session1','audio-manifest.js?v=voice1','audio-player.js?v=voice1','app.js?v=voice2','account.js?v=accounts2','profile.js?v=profile1','config.js?v=accounts1','offline.js','vendor/supabase.js'];
+const FILES=['index.html','style.css?v=toggle1','theme.js?v=toggle1','lessons.js','extra-lessons.js','lesson-expansion.js?v=lessons1','practice-session.js?v=session1','audio-manifest.js?v=voice1','audio-player.js?v=voice1','app.js?v=voice2','account.js?v=accounts2','profile.js?v=toggle1','config.js?v=accounts1','offline.js','vendor/supabase.js'];
 const URLS=new Set(FILES.map(path=>new URL(path,BASE).href));
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll([...URLS]))));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('nihongo-static-')&&key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
