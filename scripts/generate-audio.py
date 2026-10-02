@@ -34,7 +34,7 @@ pipeline = KPipeline(lang_code='j', repo_id=repo, model=model)
 fixes = json.loads((SITE / 'scripts/pronunciation.json').read_text())
 js = """
 const fs=require('fs'),vm=require('vm'),c={};c.window=c;vm.createContext(c);
-for(const f of ['lessons.js','extra-lessons.js'])vm.runInContext(fs.readFileSync('dist/'+f,'utf8'),c);
+for(const f of ['lessons.js','extra-lessons.js','lesson-expansion.js'])vm.runInContext(fs.readFileSync('dist/'+f,'utf8'),c);
 process.stdout.write(JSON.stringify([...c.LESSONS.flatMap(l=>l.cards.map(c=>c.speech)),...c.KANA_ROWS.flatMap(r=>[...r[1],...r[2]])]));
 """
 texts = list(dict.fromkeys(json.loads(subprocess.check_output(['node', '-e', js], cwd=SITE))))
