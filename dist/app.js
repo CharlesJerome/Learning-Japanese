@@ -1,5 +1,9 @@
 'use strict';
 const $=id=>document.getElementById(id);
+const language=window.NihongoI18n;
+const t=(source,params={})=>language.t(source,params);
+const h=(source,params={})=>t(source,params).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+const liveText=new Map();
 const state={lesson:'hira-0',mode:'listen',view:'practice',revealed:false,answered:false,heard:false,practised:new Set(),kana:'hiragana'};
 let voice=null,recorder=null,stream=null,recordURL=null,recordTimer=null,recordTick=null,recordStarted=0,recordGeneration=0,recordPending=false;
 const speech=new NihongoSpeech({clips:window.NIHONGO_AUDIO?.clips||{}});
@@ -8,31 +12,30 @@ const session=new NihongoPracticeSession(state.lesson,lesson().cards.length);
 const current=()=>lesson().cards[session.sourceIndex];
 const currentKey=()=>session.key;
 function completeTurn(){session.complete();state.practised.add(currentKey());window.NihongoAccount?.complete(currentKey())}
-function text(id,value){$(id).textContent=value}
-function status(id,value,error=false){text(id,value);$(id).classList.toggle('error',error)}
+function text(id,value,params={}){liveText.set(id,[value,params]);language.setText($(id),value,params)}
+function status(id,value,error=false,params={}){text(id,value,params);$(id).classList.toggle('error',error)}
 function shuffle(items){const result=[...items];for(let i=result.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[result[i],result[j]]=[result[j],result[i]]}return result}
-function fillLessons(){const groups=new Map();LESSONS.forEach(l=>{const key=l.stage==='Foundation'?(l.id.startsWith('kata')?'Katakana':'Hiragana & sounds'):l.stage;if(!groups.has(key)){const g=document.createElement('optgroup');g.label=key;groups.set(key,g);$('lesson-select').append(g)}const o=document.createElement('option');o.value=l.id;o.textContent=l.name;groups.get(key).append(o)});$('lesson-select').value=state.lesson}
+function fillLessons(){const groups=new Map();$('lesson-select').replaceChildren();LESSONS.forEach(l=>{const key=l.stage==='Foundation'?(l.id.startsWith('kata')?'Katakana':'Hiragana & sounds'):l.stage;if(!groups.has(key)){const g=document.createElement('optgroup');g.label=t(key);groups.set(key,g);$('lesson-select').append(g)}const o=document.createElement('option');o.value=l.id;o.textContent=language.lessonName(l);groups.get(key).append(o)});$('lesson-select').value=state.lesson}
 function renderCard(){
  const l=lesson(),c=current(),show=state.mode==='speak'||state.revealed;
- text('lesson-stage',l.stage.toUpperCase());text('lesson-count',`${session.length} practice turns · ${Math.min(l.cards.length,session.length)} different items${l.cards.length<session.length?' + review':''}`);text('card-position',`CARD ${String(session.index+1).padStart(2,'0')} / ${String(session.length).padStart(2,'0')}`);
+ text('lesson-stage',l.stage);text('lesson-count',l.cards.length<session.length?'{turns} practice turns · {items} different items + review':'{turns} practice turns · {items} different items',{turns:session.length,items:Math.min(l.cards.length,session.length)});text('card-position','CARD {current} / {total}',{current:String(session.index+1).padStart(2,'0'),total:String(session.length).padStart(2,'0')});
  const prompt=state.mode==='speak'?'Listen, then say it yourself.':show?'Read it. Listen again. Make it familiar.':'Listen first. What do you hear?';
- text('card-prompt',(session.isReview?'Review / ပြန်လေ့ကျင့်ပါ။ · ':'')+prompt);
+ text('card-prompt',session.isReview?'Review · {prompt}':prompt,session.isReview?{prompt:t(prompt)}:{});
  text('japanese',show?c.jp:'•••');$('japanese').classList.toggle('phrase',show&&c.jp.length>8);
- text('reading',show?c.reading:'Listen, then choose below.');text('meaning',show?c.en:'');text('burmese',show?c.my:'အရင်နားထောင်ပြီး အဖြေရွေးပါ။');
+ text('reading',show?language.reading(c):'Listen, then choose below.');text('meaning',show?language.meaning(c):'');$('burmese').hidden=true;
  text('note-title',l.stage==='Foundation'?'Small sounds, big progress.':'Build a speaking habit.');
- text('note-en',l.noteEn||'Listen to the whole phrase. Repeat slowly, record yourself, then compare. Try again without looking.');
- text('note-my',l.noteMy||'အဆုံးထိ နားထောင်ပါ။ ဖြည်းဖြည်း လိုက်ပြောပြီး ကိုယ့်အသံကို အသံသွင်းပါ။ ပြန်နားထောင်ပြီး နှိုင်းယှဉ်ပါ။');
+ text('note-en',language.note(l));$('note-my').hidden=true;
  $('listen-panel').hidden=state.mode!=='listen';$('speak-panel').hidden=state.mode!=='speak';
  document.querySelectorAll('[data-mode]').forEach(b=>{const selected=b.dataset.mode===state.mode;b.classList.toggle('selected',selected);b.setAttribute('aria-selected',selected);b.tabIndex=selected?0:-1});$('exercise').setAttribute('aria-labelledby',`${state.mode}-tab`);
  $('previous-button').disabled=session.index===0;text('next-button',session.index===session.length-1?'Start again ↺':'Next card →');
- text('session-progress',`${session.completed.size} / ${session.length} practised this session`);text('complete-button',session.done?'Practised ✓ / လေ့ကျင့်ပြီးပြီ':'I practised this / လေ့ကျင့်ပြီးပြီ');
+ text('session-progress','{completed} / {total} practised this session',{completed:session.completed.size,total:session.length});text('complete-button',session.done?'Practised ✓':'I practised this');
  $('reveal-button').hidden=state.revealed;$('reveal-button').disabled=!state.heard;
 }
 function makeChoices(){
  $('answers').replaceChildren();const c=current();let candidates=lesson().cards.filter(x=>x.jp!==c.jp);
  if(candidates.length<2)candidates=LESSONS.filter(l=>l.stage==='Foundation').flatMap(l=>l.cards).filter(x=>x.jp!==c.jp);
  const unique=[...new Map(candidates.map(x=>[x.jp,x])).values()];const options=shuffle([c,...shuffle(unique).slice(0,2)]);
- options.forEach(x=>{const b=document.createElement('button');b.className='answer';b.lang='ja';b.textContent=x.jp;b.disabled=!state.heard;b.addEventListener('click',()=>{if(state.answered)return;if(x.jp===c.jp){state.answered=true;state.revealed=true;completeTurn();b.classList.add('correct');text('quiz-feedback','Correct! / မှန်ပါတယ်။ Now try saying it.');Array.from($('answers').children).forEach(el=>el.disabled=true);renderCard()}else{b.classList.add('wrong');b.disabled=true;text('quiz-feedback','Listen again and try another. / ထပ်နားထောင်ပြီး ပြန်ရွေးပါ။')}});$('answers').append(b)});
+ options.forEach(x=>{const b=document.createElement('button');b.className='answer';b.lang='ja';b.textContent=x.jp;b.disabled=!state.heard;b.addEventListener('click',()=>{if(state.answered)return;if(x.jp===c.jp){state.answered=true;state.revealed=true;completeTurn();b.classList.add('correct');text('quiz-feedback','Correct! Now try saying it.');Array.from($('answers').children).forEach(el=>el.disabled=true);renderCard()}else{b.classList.add('wrong');b.disabled=true;text('quiz-feedback','Listen again and try another.')}});$('answers').append(b)});
 }
 function resetCard(){stopSpeech();clearRecording();state.revealed=false;state.answered=false;state.heard=false;text('quiz-feedback','');audioReady();renderCard();makeChoices()}
 function chooseLesson(id,cardKey){const selected=LESSONS.find(l=>l.id===id);if(!selected)throw new Error('Unknown lesson');let startIndex=0;if(cardKey!==undefined){startIndex=selected.cards.findIndex((_,index)=>`${id}:${index}`===cardKey);if(startIndex<0)throw new Error('Unknown lesson card')}session.reset(id,selected.cards.length,startIndex);state.lesson=id;$('lesson-select').value=id;resetCard()}
@@ -40,43 +43,43 @@ function setMode(mode){if(!['listen','speak'].includes(mode))throw new Error('Un
 function moveCard(step){session.move(step);resetCard()}
 let selectedVoice='';try{selectedVoice=localStorage.getItem('nihongo-voice-v2')||''}catch{}
 function voiceQuality(v){return (/natural|neural|premium/i.test(v.name)?100:0)+(/enhanced|google|microsoft/i.test(v.name)?40:0)+(/nanami|keita|kyoko|otoya/i.test(v.name)?10:0)}
-function audioReady(){const natural=!selectedVoice&&speech.hasClip(current().speech);status('audio-status',natural?'Ready · Natural Japanese (AI voice) / ဂျပန်အသံ အဆင်သင့်ပါ။':voice?`Ready · ${voice.name}`:'Audio unavailable. Connect to the internet or add a Japanese device voice. / အင်တာနက် ချိတ်ပါ သို့မဟုတ် ဂျပန်အသံ ထည့်ပါ။',!natural&&!voice)}
-function updateVoices(){
+function audioReady(){const natural=!selectedVoice&&speech.hasClip(current().speech);status('audio-status',natural?'Ready · Natural Japanese (AI voice)':voice?'Ready · {voice}':'Audio unavailable. Connect to the internet or add a Japanese device voice.',!natural&&!voice,{voice:voice?.name||''})}
+function updateVoices(announce=true){
  const choices=('speechSynthesis' in window?speechSynthesis.getVoices():[]).filter(v=>/^ja(?:[-_]|$)/i.test(v.lang)).sort((a,b)=>voiceQuality(b)-voiceQuality(a));
  voice=choices.find(v=>v.voiceURI===selectedVoice)||choices[0]||null;
- const select=$('voice-select');select.replaceChildren();const natural=document.createElement('option');natural.value='';natural.textContent='Natural Japanese · free AI voice';select.append(natural);
- const device=document.createElement('option');device.value='device';device.textContent='Automatic · best device voice';select.append(device);
- choices.forEach(v=>{const option=document.createElement('option');option.value=v.voiceURI;option.textContent=v.name+(v.localService?' · device':' · online');select.append(option)});
+ const select=$('voice-select');select.replaceChildren();const natural=document.createElement('option');natural.value='';natural.textContent=t('Natural Japanese · free AI voice');select.append(natural);
+ const device=document.createElement('option');device.value='device';device.textContent=t('Automatic · best device voice');select.append(device);
+ choices.forEach(v=>{const option=document.createElement('option');option.value=v.voiceURI;option.textContent=t(v.localService?'{voice} · device':'{voice} · online',{voice:v.name});select.append(option)});
  if(selectedVoice!=='device'&&!choices.some(v=>v.voiceURI===selectedVoice))selectedVoice='';select.value=selectedVoice;
- if(!speech.active)audioReady();
+ if(announce&&!speech.active)audioReady();
 }
 function stopSpeech(){speech.stop();document.querySelector('.sound-visual').classList.remove('playing');$('play-button').disabled=false}
 function speakJapanese(value,source='practice'){
- if(recordPending||(recorder&&recorder.state==='recording')){status('audio-status','Stop recording before playing the example. / အသံသွင်းတာ အရင်ရပ်ပါ။');return false}
+ if(recordPending||(recorder&&recorder.state==='recording')){status('audio-status','Stop recording before playing the example.');return false}
  stopSpeech();updateVoices();const target=source==='kana'?'kana-status':'audio-status';
  const finish=()=>{document.querySelector('.sound-visual').classList.remove('playing');$('play-button').disabled=false};
- $('recording').pause();$('play-button').disabled=true;status(target,'Loading Japanese audio… / ဂျပန်အသံ ဖွင့်နေပါတယ်။');
+ $('recording').pause();$('play-button').disabled=true;status(target,'Loading Japanese audio…');
  speech.play(value,{voice,preferDevice:!!selectedVoice,rate:Number($('speed').value),
-  onStart:kind=>{document.querySelector('.sound-visual').classList.add('playing');status(target,kind==='natural'?'Playing · Natural Japanese / ဂျပန်အသံ နားထောင်ပါ။':'Playing · Device voice / စက်အသံ နားထောင်ပါ။');if(source==='practice'){state.heard=true;Array.from($('answers').children).forEach(b=>b.disabled=state.answered||b.classList.contains('wrong'));$('reveal-button').disabled=false}},
-  onEnd:()=>{finish();status(target,source==='kana'?'Now repeat the sound. / အသံထွက် လိုက်ပြောပါ။':'Play again whenever you need. / လိုသလောက် ထပ်နားထောင်ပါ။')},
-  onFallback:()=>status(target,'Trying your device’s Japanese voice… / စက်ရဲ့ ဂျပန်အသံနဲ့ ဖွင့်နေပါတယ်။'),
-  onError:()=>{finish();status(target,'Could not play. Tap again, check your connection, or choose a device voice. / ပြန်နှိပ်ပါ၊ အင်တာနက် စစ်ပါ သို့မဟုတ် စက်အသံ ရွေးပါ။',true)}
+  onStart:kind=>{document.querySelector('.sound-visual').classList.add('playing');status(target,kind==='natural'?'Playing · Natural Japanese':'Playing · Device voice');if(source==='practice'){state.heard=true;Array.from($('answers').children).forEach(b=>b.disabled=state.answered||b.classList.contains('wrong'));$('reveal-button').disabled=false}},
+  onEnd:()=>{finish();status(target,source==='kana'?'Now repeat the sound.':'Play again whenever you need.')},
+  onFallback:()=>status(target,'Trying your device’s Japanese voice…'),
+  onError:()=>{finish();status(target,'Could not play. Tap again, check your connection, or choose a device voice.',true)}
  });return true;
 }
-function stopRecording(){clearTimeout(recordTimer);clearInterval(recordTick);if(recorder&&recorder.state!=='inactive')recorder.stop();if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}$('record-button').classList.remove('recording');text('record-button','● Record again / ပြန်အသံသွင်း');}
-function clearRecording(){recordGeneration++;stopRecording();recordPending=false;recorder=null;if(recordURL){URL.revokeObjectURL(recordURL);recordURL=null}$('recording').pause();$('recording').removeAttribute('src');$('recording').hidden=true;$('record-button').disabled=false;text('record-button','● Record my voice');status('record-status','Your recording stays in this tab. It is not uploaded. / အသံဖိုင်ကို ဒီစာမျက်နှာထဲမှာပဲ ထားပါတယ်။')}
+function stopRecording(){clearTimeout(recordTimer);clearInterval(recordTick);if(recorder&&recorder.state!=='inactive')recorder.stop();if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}$('record-button').classList.remove('recording');text('record-button','● Record again');}
+function clearRecording(){recordGeneration++;stopRecording();recordPending=false;recorder=null;if(recordURL){URL.revokeObjectURL(recordURL);recordURL=null}$('recording').pause();$('recording').removeAttribute('src');$('recording').hidden=true;$('record-button').disabled=false;text('record-button','● Record my voice');status('record-status','Your recording stays in this tab. It is not uploaded.')}
 async function recordVoice(){
  if(recorder&&recorder.state==='recording'){stopRecording();return}if(recordPending)return;
- if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){status('record-status','Recording is unavailable here. Open the site in a browser with microphone support. / မိုက်ခရိုဖုန်း ပံ့ပိုးတဲ့ browser မှာ ဖွင့်ပါ။',true);return}
- stopSpeech();$('recording').pause();recordPending=true;$('record-button').disabled=true;status('record-status','Allow microphone access to record your voice. / အသံသွင်းဖို့ မိုက်ခရိုဖုန်း ခွင့်ပြုပါ။');const gen=recordGeneration;
+ if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){status('record-status','Recording is unavailable here. Open the site in a browser with microphone support.',true);return}
+ stopSpeech();$('recording').pause();recordPending=true;$('record-button').disabled=true;status('record-status','Allow microphone access to record your voice.');const gen=recordGeneration;
  try{const incoming=await navigator.mediaDevices.getUserMedia({audio:true});if(gen!==recordGeneration){incoming.getTracks().forEach(t=>t.stop());return}stream=incoming;
  if(recordURL){URL.revokeObjectURL(recordURL);recordURL=null}$('recording').hidden=true;
  const mime=['audio/webm;codecs=opus','audio/mp4','audio/webm'].find(x=>MediaRecorder.isTypeSupported(x));const r=new MediaRecorder(stream,mime?{mimeType:mime}:{});recorder=r;const chunks=[];
  r.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
- r.onstop=()=>{if(gen!==recordGeneration)return;clearTimeout(recordTimer);clearInterval(recordTick);if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}const blob=new Blob(chunks,{type:r.mimeType||'audio/webm'});if(!blob.size){status('record-status','No audio was captured. Please try again. / အသံမရပါ။ ပြန်စမ်းပါ။',true);return}recordURL=URL.createObjectURL(blob);$('recording').src=recordURL;$('recording').hidden=false;status('record-status','Ready. Play your recording and compare with the example. / ကိုယ့်အသံကို ပြန်နားထောင်ပြီး နှိုင်းယှဉ်ပါ။');$('record-button').classList.remove('recording');text('record-button','● Record again / ပြန်အသံသွင်း')};
- r.onerror=()=>{stopRecording();status('record-status','Recording failed. Please try again. / အသံသွင်းမရပါ။ ပြန်စမ်းပါ။',true)};
- r.start();recordStarted=Date.now();$('record-button').classList.add('recording');text('record-button','■ Stop recording / ရပ်မယ်');status('record-status','Recording… 0:00 / အသံသွင်းနေပါတယ်။');recordTick=setInterval(()=>{const sec=Math.floor((Date.now()-recordStarted)/1000);status('record-status',`Recording… 0:${String(sec).padStart(2,'0')} / အသံသွင်းနေပါတယ်။ (60 seconds max)`);},1000);recordTimer=setTimeout(stopRecording,60000);
- }catch(e){if(gen!==recordGeneration)return;if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}const denied=['NotAllowedError','SecurityError'].includes(e.name);status('record-status',denied?'Microphone access was not allowed. Enable it in browser settings, then try again. / မိုက်ခရိုဖုန်း ခွင့်ပြုပြီး ပြန်စမ်းပါ။':'Microphone unavailable. Check that it is connected and try again. / မိုက်ခရိုဖုန်း စစ်ပြီး ပြန်စမ်းပါ။',true)}finally{if(gen===recordGeneration){recordPending=false;$('record-button').disabled=false}}
+ r.onstop=()=>{if(gen!==recordGeneration)return;clearTimeout(recordTimer);clearInterval(recordTick);if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}const blob=new Blob(chunks,{type:r.mimeType||'audio/webm'});if(!blob.size){status('record-status','No audio was captured. Please try again.',true);return}recordURL=URL.createObjectURL(blob);$('recording').src=recordURL;$('recording').hidden=false;status('record-status','Ready. Play your recording and compare with the example.');$('record-button').classList.remove('recording');text('record-button','● Record again')};
+ r.onerror=()=>{stopRecording();status('record-status','Recording failed. Please try again.',true)};
+ r.start();recordStarted=Date.now();$('record-button').classList.add('recording');text('record-button','■ Stop recording');status('record-status','Recording… {time} (60 seconds max)',false,{time:'0:00'});recordTick=setInterval(()=>{const sec=Math.floor((Date.now()-recordStarted)/1000);status('record-status','Recording… {time} (60 seconds max)',false,{time:`${Math.floor(sec/60)}:${String(sec%60).padStart(2,'0')}`});},1000);recordTimer=setTimeout(stopRecording,60000);
+ }catch(e){if(gen!==recordGeneration)return;if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}const denied=['NotAllowedError','SecurityError'].includes(e.name);status('record-status',denied?'Microphone access was not allowed. Enable it in browser settings, then try again.':'Microphone unavailable. Check that it is connected and try again.',true)}finally{if(gen===recordGeneration){recordPending=false;$('record-button').disabled=false}}
 }
 const pages={practice:['Listen & speak','နားထောင်၊ လိုက်ပြော၊ အသံသွင်းပြီး ပြန်နားထောင်ပါ။'],kana:['Kana library','Tap a character. Hear its sound. Repeat it aloud.'],plan:['My study plan','Six months of steady practice, around your weekly commitments.'],resources:['Learning resources','A few useful sources, with a clear way to practise.'],profile:['My profile','Your saved progress, practice history and account settings. / ကိုယ့်တိုးတက်မှုနဲ့ အကောင့်ဆက်တင်များ။']};
 function navigate(view){if(!pages[view])throw new Error('Unknown page');stopSpeech();clearRecording();state.view=view;document.querySelectorAll('.view').forEach(v=>v.hidden=v.id!==`${view}-view`);document.querySelectorAll('[data-view]').forEach(b=>{b.classList.toggle('active',b.dataset.view===view);if(b.dataset.view===view)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')});text('page-title',pages[view][0]);text('page-subtitle',pages[view][1]);}
@@ -98,3 +101,4 @@ if(document.modelContext?.registerTool){const lifecycle=new AbortController();co
 window.addEventListener('progresschange',event=>{state.practised=new Set(event.detail.keys);renderCard()});
 window.addEventListener('identitychange',()=>chooseLesson(state.lesson));
 window.NihongoPractice={openLesson:(id,cardKey)=>{chooseLesson(id,cardKey);navigate('practice')},navigate};
+window.addEventListener('languagechange',()=>{fillLessons();renderCard();makeChoices();if(state.view==='kana')renderKana();if(state.view==='plan')renderPlan();if(state.view==='resources')renderResources();updateVoices(false)});

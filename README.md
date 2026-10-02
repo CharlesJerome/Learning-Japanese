@@ -12,6 +12,7 @@ Japanese listening and speaking practice with English and Burmese guidance. Made
 - English/Burmese meanings and notes, a weekly timetable and a six-month roadmap.
 - Burmese Minna no Nihongo playlist, NihonGoal, Japanese Ammo with Misa and official JLPT resources.
 - One-click light/dark theme buttons in the header and profile settings; responsive phone, tablet and desktop layouts. Existing device-based preferences remain supported until a mode is chosen.
+- A globe language button beside Sign in switches the website interface and guidance between English, Burmese, Korean, Vietnamese and Simplified Chinese. Japanese lesson text, examples and audio remain Japanese.
 - A private profile page shows per-lesson progress, first-saved card history, display-name settings, theme settings, password-reset access and an explicit option to import earlier guest practice.
 
 These exercises supplement a course; they do not cover the complete JLPT N3 syllabus or guarantee exam readiness. See [lesson sources](LESSON_SOURCES.md). Original textbooks, source PDFs, recordings and videos are not included.
