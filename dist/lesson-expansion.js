@@ -37,7 +37,7 @@
     const originals = lesson.cards.slice(); let index = 0;
     while (lesson.cards.length < 15) {
       const source = originals[index % originals.length], frame = guided[index % guided.length], jp = clean(source.jp), en = frame[1].replace('{en}', source.en), my = frame[2].replace('{en}', source.my);
-      addUnique(lesson, makeCard(frame[0].replace('{jp}', jp), `${source.reading} · guided practice`, en, my, frame[0].replace('{jp}', source.speech || jp)));
+      addUnique(lesson, makeCard(frame[0].replace('{jp}', jp), 'Guided sentence practice · read the whole sentence', en, my, frame[0].replace('{jp}', source.speech || jp)));
       index++;
     }
   }
