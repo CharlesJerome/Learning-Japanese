@@ -6,12 +6,13 @@ Japanese listening and speaking practice with English and Burmese guidance. Made
 
 ## Learning features
 
-- 48 practice sets with 241 cards: basic hiragana/katakana, 18 new N5/N4 sets and selected N3 phrases.
+- 48 practice sets with 15 cards each: basic hiragana/katakana, N5/N4 practice and selected N3 phrases. Existing card keys stay stable so saved progress is not lost.
 - Listening quizzes, slower playback, Japanese voice selection, recording and self-comparison.
 - Free Kokoro Japanese AI clips are the default, with selectable Japanese device voices and automatic fallback if a clip cannot load. See [audio sources and generation](AUDIO_SOURCES.md).
 - English/Burmese meanings and notes, a weekly timetable and a six-month roadmap.
 - Burmese Minna no Nihongo playlist, NihonGoal, Japanese Ammo with Misa and official JLPT resources.
 - Light, dark and device themes; responsive phone, tablet and desktop layouts.
+- A private profile page shows per-lesson progress, first-saved card history, display-name settings, theme settings, password-reset access and an explicit option to import earlier guest practice.
 
 These exercises supplement a course; they do not cover the complete JLPT N3 syllabus or guarantee exam readiness. See [lesson sources](LESSON_SOURCES.md). Original textbooks, source PDFs, recordings and videos are not included.
 
@@ -29,7 +30,7 @@ Before considering the account launch fully verified, complete a real signup and
 
 ## Privacy, progress and offline use
 
-- Signed-in progress is stored in Supabase and loaded on another device after sign-in or **Retry sync**. Unsynced completions queue locally under that account ID and retry on reconnection.
+- Signed-in progress is stored in Supabase and loaded on another device after sign-in or **Retry sync**. Unsynced completions queue locally under that account ID and retry on reconnection. Open **My profile** to see the card history and per-lesson totals.
 - Guest progress is device-only, separate from account progress, and is not automatically imported.
 - Signed-in theme choices sync; guest themes and voice selections stay on the device.
 - Recordings stay in the current tab and are never uploaded. Card/view changes, sign-out, account switching and closing the tab clear them.
@@ -63,9 +64,9 @@ The service binds to `127.0.0.1:8080`. Use an HTTPS reverse proxy for remote mic
 ## Files
 
 - `dist/index.html`, `style.css`: layout, themes and account dialog.
-- `dist/lessons.js`, `extra-lessons.js`: bilingual lesson material.
-- `dist/app.js`: quizzes, speech, recording and navigation.
-- `dist/account.js`, `config.js`: Supabase authentication and progress sync.
+- `dist/lessons.js`, `extra-lessons.js`, `lesson-expansion.js`: bilingual lesson material and the 15-card lesson expansion.
+- `dist/app.js`, `practice-session.js`: quizzes, speech, recording, navigation and stable 15-card sessions.
+- `dist/account.js`, `profile.js`, `config.js`: Supabase authentication, progress sync and the private profile/history view.
 - `dist/theme.js`, `offline.js`, `sw.js`: preferences and static-file caching.
 - `supabase/`: schema and rollback validation.
 - `tests/account.test.cjs`: simulated account-switch, recovery and sync-race checks.

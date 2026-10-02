@@ -1,117 +1,46 @@
 'use strict';
 (() => {
- const el = id => document.getElementById(id);
- const storage = {get(k, fallback){try{return JSON.parse(localStorage.getItem(k)) ?? fallback}catch{return fallback}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch{return false}},remove(k){try{localStorage.removeItem(k)}catch{}}};
- const config=window.NIHONGO_CONFIG;
- let client=null,user=null,epoch=0,busy=false,activeSync=null,syncAgain=false,mode='login',recovery=false;
- let pending=new Set(),completed=new Set(),pendingTheme=null,themeRevision=0;
- const guest=new Set(storage.get('nihongo-guest-progress',[]));
- const bucket=id=>`nihongo-pending-${id}`;
- const validKey=k=>typeof k==='string'&&LESSONS.some(l=>l.cards.some((_,i)=>`${l.id}:${i}`===k));
- function message(value,error=false){el('account-status').textContent=value;el('account-status').classList.toggle('error',error)}
- function syncMessage(value,error=false){el('sync-status').textContent=value;el('sync-status').classList.toggle('error',error)}
- function announce(){window.dispatchEvent(new CustomEvent('progresschange',{detail:{keys:[...completed],signedIn:!!user}}))}
- function persistPending(){if(user&&!storage.set(bucket(user.id),{keys:[...pending],theme:pendingTheme}))syncMessage('This browser cannot keep offline changes. Stay online to save progress.',true)}
- function renderAccount(){
-  el('account-button').textContent=user?'My account / အကောင့်':'Sign in / ဝင်မယ်';
-  el('signed-in-panel').hidden=!user;el('auth-form').hidden=!!user&&!recovery;el('auth-tabs').hidden=!!user;
-  el('account-email').textContent=user?.email||'';
-  el('account-title').textContent=recovery?'Choose a new password':user?'Your account / သင့်အကောင့်':'Save your progress / တိုးတက်မှု သိမ်းမယ်';
-  el('password-field').hidden=mode==='reset';el('email-field').hidden=recovery;
-  el('auth-password').required=mode!=='reset';el('auth-email').required=!recovery;
-  el('auth-password').disabled=mode==='reset';el('auth-email').disabled=recovery;
-  el('auth-password').minLength=mode==='login'?1:10;el('auth-password').autocomplete=mode==='login'?'current-password':'new-password';
-  el('password-hint').hidden=mode==='login'||mode==='reset';
-  el('auth-submit').textContent=recovery?'Save new password':mode==='signup'?'Create account':mode==='reset'?'Send reset link':'Sign in / ဝင်မယ်';
-  el('auth-submit').disabled=busy||(mode==='signup'&&!config.publicSignupReady);
-  el('email-setup-note').hidden=config.publicSignupReady||mode==='login'||recovery;
-  document.querySelectorAll('[data-auth-mode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.authMode===mode));
- }
- function errorText(error){
-  const code=error?.code||'',msg=error?.message||'';
-  if(code==='email_not_confirmed')return 'Confirm your email before signing in. / အီးမေးလ်ကို အရင်အတည်ပြုပါ။';
-  if(error?.status===429||code==='over_email_send_rate_limit'||code==='over_request_rate_limit')return 'Too many attempts. Please wait before trying again.';
-  if(/email address not authorized|email rate|email.*sending|smtp/i.test(msg))return 'Email could not be sent. Please try again later. / အီးမေးလ်ပို့မရပါ။ နောက်မှ ပြန်စမ်းပါ။';
-  if(code==='invalid_credentials')return 'Email or password is incorrect. / အီးမေးလ် သို့မဟုတ် စကားဝှက် မမှန်ပါ။';
-  if(!navigator.onLine||/fetch|network/i.test(msg))return 'You are offline or the connection failed. Please try again when connected.';
-  return msg||'Could not complete this request. Please try again.';
- }
- async function loadUser(session,forceRefresh=false){
-  const next=session?.user||null;
-  const sameAccount=next?.id===user?.id&&!!next===!!user;
-  if(sameAccount&&!forceRefresh){renderAccount();return}
-  const mine=++epoch;user=next;
-  if(!sameAccount)window.dispatchEvent(new CustomEvent('identitychange'));
-  if(!sameAccount){pendingTheme=null;pending=new Set();completed=new Set();
-  if(user){const cache=storage.get(bucket(user.id),{});pending=new Set((Array.isArray(cache.keys)?cache.keys:[]).filter(validKey));pendingTheme=['system','dark','light'].includes(cache.theme)?cache.theme:null;completed=new Set(pending)}else completed=new Set(guest);}
-  announce();renderAccount();
-  if(!user){syncMessage('Guest practice • saved on this device only / ဒီစက်မှာပဲ သိမ်းမယ်');return}
-  syncMessage('Loading your progress… / တိုးတက်မှုကို ဖတ်နေပါတယ်');
-  const id=user.id,loadedThemeRevision=themeRevision;
-  try{
-   const [progress,settings]=await Promise.all([client.from('study_progress').select('card_key').eq('user_id',id),client.from('study_preferences').select('theme').eq('user_id',id).maybeSingle()]);
-   if(mine!==epoch)return;
-   if(progress.error)throw progress.error;if(settings.error)throw settings.error;
-   completed=new Set([...progress.data.map(r=>r.card_key).filter(validKey),...completed,...pending]);
-   if(pendingTheme)NihongoTheme.apply(pendingTheme);else if(settings.data?.theme&&loadedThemeRevision===themeRevision)NihongoTheme.apply(settings.data.theme);
-   announce();await flush();
-  }catch(error){if(mine===epoch)syncMessage('Cloud progress could not load. New practice is kept on this device until you reconnect.',true)}
- }
- async function flush(){
-  if(activeSync){syncAgain=true;return activeSync}
-  if(!client||!user)return;
-  if(!navigator.onLine){syncMessage('Offline • your new practice will sync when connected. / အွန်လိုင်းပြန်ရရင် သိမ်းမယ်');return}
-  const mine=epoch,id=user.id,keys=[...pending],theme=pendingTheme;
-  activeSync=(async()=>{
-   try{
-    if(keys.length){syncMessage('Saving progress… / သိမ်းနေပါတယ်');const result=await client.from('study_progress').upsert(keys.map(card_key=>({user_id:id,card_key})),{onConflict:'user_id,card_key',ignoreDuplicates:true});if(result.error)throw result.error;if(mine!==epoch)return;keys.forEach(k=>pending.delete(k));persistPending()}
-    if(theme){const result=await client.from('study_preferences').upsert({user_id:id,theme},{onConflict:'user_id'});if(result.error)throw result.error;if(mine!==epoch)return;if(pendingTheme===theme)pendingTheme=null;persistPending()}
-    if(mine===epoch)syncMessage('Progress saved to your account / သင့်အကောင့်မှာ သိမ်းပြီးပါပြီ');
-   }catch(error){if(mine===epoch){persistPending();syncMessage('Saved on this device; cloud sync needs a connection. Use Retry sync. / ပြန်ချိတ်ပြီး သိမ်းပါ။',true)}}
-  })();
-  await activeSync;activeSync=null;
-  if(syncAgain){syncAgain=false;return flush()}
- }
- window.NihongoAccount={
-  complete(key){if(!validKey(key))return;completed.add(key);if(user){pending.add(key);persistPending();void flush()}else{guest.add(key);if(!storage.set('nihongo-guest-progress',[...guest]))syncMessage('Guest practice lasts for this tab because browser storage is unavailable.',true)}announce()},
-  getKeys:()=>[...completed],isSignedIn:()=>!!user
- };
- completed=new Set(guest);announce();
- el('account-button').onclick=()=>{renderAccount();message('');el('account-dialog').showModal()};
- el('account-close').onclick=()=>el('account-dialog').close();
- el('account-dialog').addEventListener('close',()=>{el('auth-password').value=''});
- document.querySelectorAll('[data-auth-mode]').forEach(b=>b.onclick=()=>{mode=b.dataset.authMode;recovery=false;message('');renderAccount()});
- el('retry-sync').onclick=()=>{if(user){void loadUser({user},true)}};
- el('auth-form').onsubmit=async event=>{
-  event.preventDefault();if(busy)return;if(!client){message('Login is unavailable. Please reload when connected.',true);return}if(mode==='signup'&&!config.publicSignupReady)return;
-  busy=true;renderAccount();message('Please wait… / ခဏစောင့်ပါ');
-  const email=el('auth-email').value.trim(),password=el('auth-password').value;
-  try{
-   const redirect=location.origin+location.pathname;
-   let result;
-   if(recovery)result=await client.auth.updateUser({password});
-   else if(mode==='signup')result=await client.auth.signUp({email,password,options:{emailRedirectTo:redirect}});
-   else if(mode==='reset')result=await client.auth.resetPasswordForEmail(email,{redirectTo:redirect});
-   else result=await client.auth.signInWithPassword({email,password});
-   if(result.error)throw result.error;
-   el('auth-password').value='';
-   if(recovery){recovery=false;mode='login';message('Password updated. / စကားဝှက် ပြောင်းပြီးပါပြီ')}
-   else if(mode==='reset')message('If this account can receive email, a reset link has been sent. Check your inbox.');
-   else if(mode==='signup'&&!result.data.session)message('Check your email to confirm your account, then sign in.');
-   else{await loadUser(result.data.session);message('Signed in. / ဝင်ပြီးပါပြီ')}
-  }catch(error){message(errorText(error),true)}finally{busy=false;renderAccount()}
- };
- el('signout-button').onclick=async()=>{
-  if(!client||busy)return;busy=true;el('signout-button').disabled=true;
-  try{const {error}=await client.auth.signOut({scope:'local'});if(error)throw error;await loadUser(null);mode='login';recovery=false;message('Signed out on this device. / ဒီစက်မှ ထွက်ပြီးပါပြီ')}catch(error){message(errorText(error),true)}finally{busy=false;el('signout-button').disabled=false;renderAccount()}
- };
- window.addEventListener('themechange',event=>{themeRevision++;if(user){pendingTheme=event.detail;persistPending();void flush()}});
- window.addEventListener('online',()=>{if(user){void loadUser({user},true)}});
- window.addEventListener('offline',()=>syncMessage('Offline • lessons already loaded remain available. / ဖတ်ပြီးသား သင်ခန်းစာတွေကို ဆက်လေ့ကျင့်နိုင်ပါတယ်။'));
- try{
-  client=window.supabase.createClient(config.url,config.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true},global:{fetch:(url,options={})=>fetch(url,{...options,signal:options.signal||AbortSignal.timeout(12000)})}});
-  client.auth.onAuthStateChange((event,session)=>{setTimeout(()=>{if(event==='PASSWORD_RECOVERY'){recovery=true;mode='recovery';el('account-dialog').showModal()}else if(event==='SIGNED_OUT'||session?.user?.id!==user?.id){recovery=false;mode='login';el('auth-password').value=''}void loadUser(session)},0)});
-  client.auth.getSession().then(({data,error})=>{if(error)throw error;return loadUser(data.session)}).catch(()=>syncMessage('Login connection unavailable. Guest practice still works.',true));
- }catch{syncMessage('Login could not load. Guest practice still works.',true)}
- if(!user)syncMessage('Guest practice • saved on this device only / ဒီစက်မှာပဲ သိမ်းမယ်');renderAccount();
+  const el=id=>document.getElementById(id);
+  const storage={get(k,f){try{return JSON.parse(localStorage.getItem(k))??f}catch{return f}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch{return false}},remove(k){try{localStorage.removeItem(k)}catch{}}};
+  const config=window.NIHONGO_CONFIG;
+  let client=null,user=null,epoch=0,busy=false,activeSync=null,syncAgain=false,mode='login',recovery=false,themeRevision=0,pendingTheme=null;
+  let pending=new Set(),completed=new Set(),records=[],loadState='loading',loadError='';
+  const guest=new Set(storage.get('nihongo-guest-progress',[]).filter(k=>typeof k==='string'));
+  const bucket=id=>`nihongo-pending-${id}`,confirmedBucket=id=>`nihongo-confirmed-${id}`;
+  const validKey=k=>typeof k==='string'&&LESSONS.some(l=>l.cards.some((_,i)=>`${l.id}:${i}`===k));
+  const displayName=u=>String(u?.user_metadata?.display_name||'').trim().slice(0,80);
+  const userSummary=()=>user?{id:user.id,email:user.email||'',displayName:displayName(user)}:null;
+  const keySet=()=>new Set(records.map(r=>r.key));
+  function message(v,e=false){el('account-status').textContent=v;el('account-status').classList.toggle('error',e)}
+  function syncMessage(v,e=false){el('sync-status').textContent=v;el('sync-status').classList.toggle('error',e)}
+  function snapshot(){const rows=[...records],known=keySet();for(const key of pending)if(!known.has(key))rows.push({key,completedAt:null,pending:true});return{signedIn:!!user,user:userSummary(),records:rows,pendingCount:pending.size,loadState,error:loadError}}
+  function announce(){window.dispatchEvent(new CustomEvent('progresschange',{detail:{keys:[...completed],signedIn:!!user,snapshot:snapshot()}}))}
+  function persistPending(){if(!user)return; if(!storage.set(bucket(user.id),{keys:[...pending],theme:pendingTheme}))syncMessage('This browser cannot keep offline changes. Stay online to save progress.',true)}
+  function persistConfirmed(){if(user)storage.set(confirmedBucket(user.id),records)}
+  function hydrateLocal(id){const cache=storage.get(bucket(id),{});pending=new Set((Array.isArray(cache.keys)?cache.keys:[]).filter(validKey));pendingTheme=['system','dark','light'].includes(cache.theme)?cache.theme:null;const saved=storage.get(confirmedBucket(id),[]);records=Array.isArray(saved)?saved.filter(r=>validKey(r?.key)).map(r=>({key:r.key,completedAt:r.completedAt||null})):[];completed=new Set([...records.map(r=>r.key),...pending])}
+  function renderAccount(){
+    el('account-button').textContent=user?'My account / အကောင့်':'Sign in / ဝင်မယ်';el('signed-in-panel').hidden=!user;el('auth-form').hidden=!!user&&!recovery;el('auth-tabs').hidden=!!user;el('account-email').textContent=user?.email||'';
+    el('account-title').textContent=recovery?'Choose a new password':user?'Your account / သင့်အကောင့်':'Save your progress / တိုးတက်မှု သိမ်းမယ်';el('password-field').hidden=mode==='reset';el('email-field').hidden=recovery;el('auth-password').required=mode!=='reset';el('auth-email').required=!recovery;el('auth-password').disabled=mode==='reset';el('auth-email').disabled=recovery;el('auth-password').minLength=mode==='login'?1:10;el('auth-password').autocomplete=mode==='login'?'current-password':'new-password';el('password-hint').hidden=mode==='login'||mode==='reset';el('auth-submit').textContent=recovery?'Save new password':mode==='signup'?'Create account':mode==='reset'?'Send reset link':'Sign in / ဝင်မယ်';el('auth-submit').disabled=busy||(mode==='signup'&&!config.publicSignupReady);el('email-setup-note').hidden=config.publicSignupReady||mode==='login'||recovery;document.querySelectorAll('[data-auth-mode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.authMode===mode));
+    const p=el('open-profile-button');if(p)p.hidden=!user;
+  }
+  function errorText(e){const c=e?.code||'',m=e?.message||'';if(c==='email_not_confirmed')return'Confirm your email before signing in. / အီးမေးလ်ကို အရင်အတည်ပြုပါ။';if(e?.status===429||c==='over_email_send_rate_limit'||c==='over_request_rate_limit')return'Too many attempts. Please wait before trying again.';if(/email address not authorized|email rate|email.*sending|smtp/i.test(m))return'Email could not be sent. Please try again later. / အီးမေးလ်ပို့မရပါ။ နောက်မှ ပြန်စမ်းပါ။';if(c==='invalid_credentials')return'Email or password is incorrect. / အီးမေးလ် သို့မဟုတ် စကားဝှက် မမှန်ပါ။';if(!navigator.onLine||/fetch|network/i.test(m))return'You are offline or the connection failed. Please try again when connected.';return m||'Could not complete this request. Please try again.'}
+  async function loadUser(session,force=false){
+    const next=session?.user||null,same=next?.id===user?.id&&!!next===!!user;if(same&&!force){if(next)user=next;renderAccount();announce();return}
+    const mine=++epoch;if(!same)window.dispatchEvent(new CustomEvent('identitychange'));user=next;if(!same){pendingTheme=null;pending=new Set();records=[];completed=new Set();if(user)hydrateLocal(user.id);else completed=new Set(guest)}loadState=user?'loading':'ready';loadError='';announce();renderAccount();if(!user){syncMessage('Guest practice • saved on this device only / ဒီစက်မှာပဲ သိမ်းမယ်');return}
+    syncMessage('Loading your progress… / တိုးတက်မှုကို ဖတ်နေပါတယ်');const id=user.id,rev=themeRevision;
+    const [progress,settings]=await Promise.all([client.from('study_progress').select('card_key,completed_at').eq('user_id',id),client.from('study_preferences').select('theme').eq('user_id',id).maybeSingle()]);if(mine!==epoch)return;
+    if(progress.error){loadState=records.length?'cached':'error';loadError=errorText(progress.error)}else{const remote=(progress.data||[]).filter(r=>validKey(r.card_key)).map(r=>({key:r.card_key,completedAt:r.completed_at||null})),by=new Map(remote.map(r=>[r.key,r]));for(const r of records)if(!by.has(r.key))by.set(r.key,r);records=[...by.values()];persistConfirmed();loadState='ready'}
+    if(settings.error){if(!loadError)loadError=errorText(settings.error)}else if(pendingTheme)NihongoTheme.apply(pendingTheme);else if(settings.data?.theme&&rev===themeRevision)NihongoTheme.apply(settings.data.theme);completed=new Set([...records.map(r=>r.key),...pending]);announce();if(loadState==='ready')await flush();syncMessage(loadState==='ready'?'Progress saved to your account / သင့်အကောင့်မှာ သိမ်းပြီးပါပြီ':'Cloud progress could not load. Cached progress remains visible; Retry sync when connected.',loadState!=='ready')
+  }
+  async function refreshRecords(id,mine){const result=await client.from('study_progress').select('card_key,completed_at').eq('user_id',id);if(mine!==epoch||result.error)return;const remote=(result.data||[]).filter(r=>validKey(r.card_key)).map(r=>({key:r.card_key,completedAt:r.completed_at||null})),by=new Map(remote.map(r=>[r.key,r]));for(const r of records)if(!by.has(r.key))by.set(r.key,r);records=[...by.values()];persistConfirmed();completed=new Set([...records.map(r=>r.key),...pending]);announce()}
+  async function flush(){if(activeSync){syncAgain=true;return activeSync}if(!client||!user){return}if(!navigator.onLine){syncMessage('Offline • your new practice will sync when connected. / အွန်လိုင်းပြန်ရရင် သိမ်းမယ်');return}const mine=epoch,id=user.id,keys=[...pending],theme=pendingTheme;activeSync=(async()=>{try{if(keys.length){syncMessage('Saving progress… / သိမ်းနေပါတယ်');const r=await client.from('study_progress').upsert(keys.map(card_key=>({user_id:id,card_key})),{onConflict:'user_id,card_key',ignoreDuplicates:true});if(r.error)throw r.error;if(mine!==epoch)return;keys.forEach(k=>pending.delete(k));persistPending();await refreshRecords(id,mine)}if(theme){const r=await client.from('study_preferences').upsert({user_id:id,theme},{onConflict:'user_id'});if(r.error)throw r.error;if(mine!==epoch)return;if(pendingTheme===theme)pendingTheme=null;persistPending()}if(mine===epoch){completed=new Set([...records.map(r=>r.key),...pending]);announce();syncMessage('Progress saved to your account / သင့်အကောင့်မှာ သိမ်းပြီးပါပြီ')}}catch(e){if(mine===epoch){persistPending();syncMessage('Saved on this device; cloud sync needs a connection. Use Retry sync. / ပြန်ချိတ်ပြီး သိမ်းပါ။',true)}}})();await activeSync;activeSync=null;if(syncAgain){syncAgain=false;return flush()}}
+  async function saveProfile(name){if(!client||!user)throw new Error('Sign in to edit your profile.');const mine=epoch,meta={...(user.user_metadata||{})},value=String(name||'').trim().slice(0,80);if(value)meta.display_name=value;else delete meta.display_name;const r=await client.auth.updateUser({data:meta});if(r.error)throw r.error;if(mine===epoch&&r.data?.user){user=r.data.user;renderAccount();announce()}return userSummary()}
+  async function requestPasswordReset(){if(!client||!user?.email)throw new Error('Sign in with an email address first.');const r=await client.auth.resetPasswordForEmail(user.email,{redirectTo:location.origin+location.pathname});if(r.error)throw r.error}
+  async function signOut(){if(!client)throw new Error('Login is unavailable.');const r=await client.auth.signOut({scope:'local'});if(r.error)throw r.error;await loadUser(null)}
+  window.NihongoAccount={complete(key){if(!validKey(key))return;completed.add(key);if(user){pending.add(key);persistPending();void flush()}else{guest.add(key);storage.set('nihongo-guest-progress',[...guest])}announce()},getKeys:()=>[...completed],getSnapshot:snapshot,isSignedIn:()=>!!user,saveProfile,requestPasswordReset,signOut,getGuestCount:()=>[...guest].filter(k=>validKey(k)&&!completed.has(k)).length,async importGuestProgress(){if(!user)throw new Error('Sign in before adding guest practice.');let count=0;for(const key of guest)if(validKey(key)&&!completed.has(key)){pending.add(key);completed.add(key);count++}if(count){storage.remove('nihongo-guest-progress');guest.clear();persistPending();await flush();announce()}return count}};
+  completed=new Set(guest);announce();el('account-button').onclick=()=>{renderAccount();message('');el('account-dialog').showModal()};const profileOpen=el('open-profile-button');if(profileOpen)profileOpen.onclick=()=>{el('account-dialog').close();window.NihongoPractice?.navigate('profile')};el('account-close').onclick=()=>el('account-dialog').close();el('account-dialog').addEventListener('close',()=>{el('auth-password').value=''});document.querySelectorAll('[data-auth-mode]').forEach(b=>b.onclick=()=>{mode=b.dataset.authMode;recovery=false;message('');renderAccount()});el('retry-sync').onclick=()=>{if(user)void loadUser({user},true)};
+  el('auth-form').onsubmit=async event=>{event.preventDefault();if(busy)return;if(!client){message('Login is unavailable. Please reload when connected.',true);return}if(mode==='signup'&&!config.publicSignupReady)return;busy=true;renderAccount();message('Please wait… / ခဏစောင့်ပါ');const email=el('auth-email').value.trim(),password=el('auth-password').value;try{const redirect=location.origin+location.pathname;let r;if(recovery)r=await client.auth.updateUser({password});else if(mode==='signup')r=await client.auth.signUp({email,password,options:{emailRedirectTo:redirect}});else if(mode==='reset')r=await client.auth.resetPasswordForEmail(email,{redirectTo:redirect});else r=await client.auth.signInWithPassword({email,password});if(r.error)throw r.error;el('auth-password').value='';if(recovery){recovery=false;mode='login';message('Password updated. / စကားဝှက် ပြောင်းပြီးပါပြီ')}else if(mode==='reset')message('If this account can receive email, a reset link has been sent. Check your inbox.');else if(mode==='signup'&&!r.data.session)message('Check your email to confirm your account, then sign in.');else{await loadUser(r.data.session);message('Signed in. / ဝင်ပြီးပါပြီ')}}catch(e){message(errorText(e),true)}finally{busy=false;renderAccount()}};
+  el('signout-button').onclick=async()=>{if(!client||busy)return;busy=true;el('signout-button').disabled=true;try{await signOut();mode='login';recovery=false;message('Signed out on this device. / ဒီစက်မှ ထွက်ပြီးပါပြီ')}catch(e){message(errorText(e),true)}finally{busy=false;el('signout-button').disabled=false;renderAccount()}};
+  window.addEventListener('themechange',e=>{themeRevision++;if(user){pendingTheme=e.detail;persistPending();void flush()}});window.addEventListener('online',()=>{if(user)void loadUser({user},true)});window.addEventListener('offline',()=>syncMessage('Offline • lessons already loaded remain available. / ဖတ်ပြီးသား သင်ခန်းစာတွေကို ဆက်လေ့ကျင့်နိုင်ပါတယ်။'));
+  try{client=window.supabase.createClient(config.url,config.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true},global:{fetch:(url,o={})=>fetch(url,{...o,signal:o.signal||AbortSignal.timeout(12000)})}});client.auth.onAuthStateChange((event,session)=>{setTimeout(()=>{if(event==='PASSWORD_RECOVERY'){recovery=true;mode='recovery';el('account-dialog').showModal()}else if(event==='SIGNED_OUT'||(session?.user?.id&&session.user.id!==user?.id)){recovery=false;mode='login';el('auth-password').value=''}if(event==='USER_UPDATED'&&session?.user?.id===user?.id){user=session.user;renderAccount();announce()}void loadUser(session,event==='TOKEN_REFRESHED'&&!!session?.user)},0)});client.auth.getSession().then(({data,error})=>{if(error)throw error;return loadUser(data.session)}).catch(()=>{loadState='error';loadError='Login connection unavailable.';syncMessage('Login connection unavailable. Guest practice still works.',true)})}catch{loadState='error';loadError='Login could not load.';syncMessage('Login could not load. Guest practice still works.',true)}renderAccount();
 })();
