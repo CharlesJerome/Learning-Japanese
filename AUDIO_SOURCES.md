@@ -11,6 +11,8 @@ The default voice is AI-generated speech, not a human recording or a Duolingo vo
 
 Visitors do not need Python, an API key, or a paid voice account. Files load on demand after a tap. The browser's Japanese voice is used if a clip fails or is unavailable; visitors may also choose a device voice explicitly. A local Japanese device voice is needed for dependable offline speech. The service worker does not download or cache the audio library.
 
+The voice picker lists Natural Japanese, plus Japanese Kyoko and Eddy voices when installed on the device. Other device voices are omitted from the picker; an available Japanese voice remains the automatic fallback on devices without Kyoko or Eddy. Playback speeds are 0.25×, 0.75×, 1×, 1.4× and 2×. Changing speed updates an active clip immediately while preserving pitch. Device speech restarts the phrase at the new rate; its precise pacing depends on the operating system's speech engine.
+
 ## Regenerate
 
 Use Python 3.12 in a separate virtual environment. Install `scripts/voice-requirements.txt`, then run `python -m unidic download` and `python scripts/generate-audio.py`. Set `HF_HOME` to reuse an existing model cache. The generator verifies model and voice hashes. Model and dictionary downloads are only needed during asset preparation. `--only-corrections` retains already-generated ordinary clips while rebuilding explicit pronunciation corrections.
