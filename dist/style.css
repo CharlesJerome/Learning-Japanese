@@ -6,6 +6,8 @@
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 
 /* Shared light and dark surfaces. */
+/* Legacy Burmese guidance is visible only when Burmese is selected, including newly rendered views. */
+html:not([lang="my"]) [lang="my"]{display:none!important}
 :root{--surface:#fff;--soft:#edf1ff;--tab:#e9edf5;--coach:#d7f490;color-scheme:light}
 :root[data-theme=dark]{--paper:#101827;--surface:#192539;--ink:#eef3fb;--muted:#b0bfd3;--line:#34435a;--blue:#a9b9ff;--soft:#283654;--tab:#131e30;--coach:#253d2a;--nav:#0b1220;color-scheme:dark}
 .lesson-bar,select,.mode-tabs .selected,.exercise,.answer,.secondary,.panel,.kana-key,.roadmap>div{background:var(--surface);color:var(--ink)}
